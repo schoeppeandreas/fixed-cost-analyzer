@@ -6,10 +6,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 
-# Erlaubt die Build-Skripte von sharp und msw
-RUN printf "only-built-dependencies[]=sharp\nonly-built-dependencies[]=msw\n" > .npmrc
-
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --ignore-scripts=false
 
 COPY . .
 
