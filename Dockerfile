@@ -6,9 +6,8 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 
-# Erlaubt die notwendigen Build-Skripte
-RUN echo "onlyBuiltDependencies[]=sharp" > .npmrc && \
-    echo "onlyBuiltDependencies[]=msw" >> .npmrc
+# Erlaubt die Build-Skripte von sharp und msw
+RUN printf "only-built-dependencies[]=sharp\nonly-built-dependencies[]=msw\n" > .npmrc
 
 RUN pnpm install --frozen-lockfile
 
