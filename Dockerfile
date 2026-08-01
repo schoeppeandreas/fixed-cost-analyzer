@@ -10,6 +10,9 @@ RUN pnpm install
 
 COPY . .
 
+# Entfernt die problematische Workspace-Datei
+RUN rm -f pnpm-workspace.yaml
+
 RUN pnpm build
 
 EXPOSE 3000
