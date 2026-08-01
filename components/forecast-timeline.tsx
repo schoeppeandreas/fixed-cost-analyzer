@@ -129,21 +129,17 @@ export function ForecastTimeline({
                           paidEntries[`${month.month}:${entry.seriesKey}`] && 'opacity-50 line-through',
                         )}
                       >
-                        <button
-                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                            e.stopPropagation()
-                            onTogglePaid?.(month.month, entry.seriesKey)
-                          }}
+                        <div
                           className="shrink-0 p-1 hover:bg-primary/20 rounded transition-colors"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Checkbox
                             checked={paidEntries[`${month.month}:${entry.seriesKey}`] ?? false}
                             onCheckedChange={() => {
                               onTogglePaid?.(month.month, entry.seriesKey)
                             }}
-                            onClick={(e) => e.stopPropagation()}
                           />
-                        </button>
+                        </div>
                         <div 
                           onClick={() => setSelectedEntry(entry)}
                           className="flex min-w-0 flex-1 items-center gap-3"
