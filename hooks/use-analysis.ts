@@ -44,6 +44,7 @@ export function useAnalysis() {
     DEFAULT_ANONYMIZE_OPTIONS,
   )
   const [redaction, setRedaction] = useState<AnonymizeResult | null>(null)
+  const [monthOffset, setMonthOffset] = useState(0)
 
   // Gespeicherten Zustand beim Start laden
   useEffect(() => {
@@ -89,10 +90,17 @@ export function useAnalysis() {
     [transactions, categories, overrides, referenceDate],
   )
 
-  const forecast = useMemo(
-    () => buildForecast(series, referenceDate, categories, 3),
+  // Erweiterte Prognose: 1 Monat zurück + 3 vorwärts = 4 Monate
+  const extendedForecast = useMemo(
+    () => buildForecast(series, referenceDate, categories, 4, 0.35, -1),
     [series, referenceDate, categories],
   )
+
+  // Sichtbare Prognose: 3-Monats-Fenster basierend auf monthOffset
+  const forecast = useMemo(() => {
+    const startIndex = 1 + monthOffset // 1 = Offset für "heute"
+    return extendedForecast.slice(startIndex, startIndex + 3)
+  }, [extendedForecast, monthOffset])
 
   /** Map: transactionId -> categoryId, für die Auswertung der variablen Kosten. */
   const txCategoryMap = useMemo(() => {
@@ -306,6 +314,8 @@ export function useAnalysis() {
     anonymizeOptions,
     setAnonymizeOptions,
     redaction,
+    monthOffset,
+    setMonthOffset,
     importFile,
     importCsvText,
     setSeriesCategory,

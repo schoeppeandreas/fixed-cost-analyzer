@@ -583,6 +583,9 @@ const MONTH_NAMES = [
  * Erzeugt die Prognose für die kommenden `monthCount` Monate.
  * Startet am Tag nach dem Referenzdatum, damit bereits gebuchte Posten
  * nicht doppelt gezählt werden.
+ *
+ * @param startMonthOffset - Verschiebt den Startmonat relativ zum Folgemonat.
+ *   0 = nächster Monat (Standard), -1 = aktueller Monat, -12 = 12 Monate zurück
  */
 export function buildForecast(
   series: Series[],
@@ -590,6 +593,7 @@ export function buildForecast(
   categories: Category[],
   monthCount = 3,
   minConfidence = 0.35,
+  startMonthOffset = 0,
 ): ForecastMonth[] {
   // Nur Kategorien mit bucket 'fixed' gehören in die Fixkosten-Prognose.
   // Einnahmen (z. B. Kindergeld) und variable Kosten (Einkauf, Tanken)
@@ -603,7 +607,7 @@ export function buildForecast(
 
   for (let i = 0; i < monthCount; i++) {
     const monthDate = new Date(
-      Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i + 1, 1),
+      Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i + 1 + startMonthOffset, 1),
     )
     months.push({
       month: `${monthDate.getUTCFullYear()}-${String(monthDate.getUTCMonth() + 1).padStart(2, '0')}`,
@@ -614,7 +618,7 @@ export function buildForecast(
   }
 
   const horizonEnd = new Date(
-    Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + monthCount + 1, 0),
+    Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + monthCount + 1 + startMonthOffset, 0),
   )
   const horizonEndIso = toIso(horizonEnd)
 

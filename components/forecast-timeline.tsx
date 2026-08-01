@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { CalendarIcon, InfoIcon } from 'lucide-react'
+import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, InfoIcon } from 'lucide-react'
 import { ForecastDetailDialog } from '@/components/forecast-detail-dialog'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -27,6 +28,10 @@ type ForecastTimelineProps = {
   paidEntries?: Record<string, boolean>
   onNameChange?: (seriesKey: string, name: string | null) => void
   onTogglePaid?: (month: string, seriesKey: string) => void
+  monthOffset?: number
+  onMonthOffsetChange?: (offset: number) => void
+  canNavigateBack?: boolean
+  canNavigateForward?: boolean
 }
 
 export function ForecastTimeline({
@@ -37,6 +42,10 @@ export function ForecastTimeline({
   paidEntries = {},
   onNameChange,
   onTogglePaid,
+  monthOffset = 0,
+  onMonthOffsetChange,
+  canNavigateBack = false,
+  canNavigateForward = false,
 }: ForecastTimelineProps) {
   const [selectedEntry, setSelectedEntry] = useState<typeof forecast[0]['entries'][0] | null>(
     null,
@@ -79,14 +88,79 @@ export function ForecastTimeline({
 
   const maxTotal = Math.max(...effectiveForecasts.map((month) => month.effectiveTotal), 1)
 
+  const isHistorical = monthOffset < 0
+  const isFuture = monthOffset > 0
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Navigations-Leiste */}
+      <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/20 px-4 py-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onMonthOffsetChange?.(monthOffset - 1)}
+          disabled={!canNavigateBack}
+          className="gap-2"
+        >
+          <ChevronLeftIcon className="size-4" />
+          Vorheriger Monat
+        </Button>
+        
+        <div className="flex flex-col items-center gap-1">
+          <div className="text-sm font-medium">
+            {monthOffset === 0 ? 'Aktuelle Prognose' :
+             monthOffset < 0 ? `${Math.abs(monthOffset)} Monat${Math.abs(monthOffset) === 1 ? '' : 'e'} zurück` :
+             `${monthOffset} Monat${monthOffset === 1 ? '' : 'e'} voraus`}
+          </div>
+          {monthOffset !== 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onMonthOffsetChange?.(0)}
+              className="h-6 text-xs"
+            >
+              Zurück zur aktuellen Prognose
+            </Button>
+          )}
+        </div>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onMonthOffsetChange?.(monthOffset + 1)}
+          disabled={!canNavigateForward}
+          className="gap-2"
+        >
+          Nächster Monat
+          <ChevronRightIcon className="size-4" />
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {effectiveForecasts.map((month) => (
-          <Card key={month.month} className="flex flex-col">
+          <Card
+            key={month.month}
+            className={cn(
+              "flex flex-col",
+              isHistorical && "border-muted-foreground/30 bg-muted/20",
+              isFuture && "border-primary/30"
+            )}
+          >
             <CardHeader className="gap-2">
               <div className="flex items-baseline justify-between gap-2">
-                <CardTitle className="text-base">{month.monthLabel}</CardTitle>
+                <CardTitle className="text-base flex items-center gap-2">
+                  {month.monthLabel}
+                  {isHistorical && (
+                    <Badge variant="outline" className="text-xs font-normal">
+                      Vergangenheit
+                    </Badge>
+                  )}
+                  {isFuture && (
+                    <Badge variant="outline" className="text-xs font-normal">
+                      Zukunft
+                    </Badge>
+                  )}
+                </CardTitle>
                 <Badge variant="secondary" className="font-mono tabular-nums">
                   {month.entries.length}
                 </Badge>

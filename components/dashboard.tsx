@@ -40,6 +40,8 @@ export function Dashboard(props: DashboardProps) {
     dataRange,
     fileName,
     redaction,
+    monthOffset,
+    setMonthOffset,
     setSeriesCategory,
     setSeriesAmount,
     setSeriesName,
@@ -259,6 +261,10 @@ export function Dashboard(props: DashboardProps) {
             paidEntries={props.overrides.paid}
             onNameChange={setSeriesName}
             onTogglePaid={togglePaid}
+            monthOffset={monthOffset}
+            onMonthOffsetChange={setMonthOffset}
+            canNavigateBack={monthOffset > -1}
+            canNavigateForward={monthOffset < 0}
           />
         </TabsContent>
 
