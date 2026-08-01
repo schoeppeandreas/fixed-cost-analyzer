@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "4040:3000"          # ← Port hier anpassen (links = externer Port)
+      - "4040:3000"
     environment:
       - NODE_ENV=production
     restart: unless-stopped
