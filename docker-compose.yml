@@ -1,13 +1,8 @@
 services:
   app:
-    image: node:20-alpine
-    working_dir: /app
-    volumes:
-      - .:/app
-      - /app/node_modules
+    build: .
     ports:
-      - "4040:3000"
+      - "4040:3000"          # ← Port hier anpassen (links = externer Port)
     environment:
       - NODE_ENV=production
-    command: sh -c "npm install && npm run build && npm run start"
     restart: unless-stopped
