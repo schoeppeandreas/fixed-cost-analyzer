@@ -6,6 +6,10 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 
+# Erlaubt die notwendigen Build-Skripte
+RUN echo "onlyBuiltDependencies[]=sharp" > .npmrc && \
+    echo "onlyBuiltDependencies[]=msw" >> .npmrc
+
 RUN pnpm install --frozen-lockfile
 
 COPY . .
