@@ -10,7 +10,6 @@ import {
   UploadIcon,
 } from 'lucide-react'
 import { AnonymizeSettings } from '@/components/anonymize-settings'
-import { DateFieldSettings } from '@/components/date-field-settings'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,7 +25,6 @@ import { generateDemoCsv } from '@/lib/demo-data'
 import { cn } from '@/lib/utils'
 
 type ImportPanelProps = {
-  onFile: (file: File) => void
   onFiles: (files: File[]) => void
   onDemo: (csv: string) => void
   isLoading: boolean
@@ -36,7 +34,6 @@ type ImportPanelProps = {
 }
 
 export function ImportPanel({
-  onFile,
   onFiles,
   onDemo,
   isLoading,
@@ -51,16 +48,10 @@ export function ImportPanel({
     (event: React.DragEvent<HTMLDivElement>) => {
       event.preventDefault()
       setIsDragging(false)
-      const files = Array.from(event.dataTransfer.files)
-      if (files.length > 0) {
-        if (files.length === 1) {
-          onFile(files[0])
-        } else {
-          onFiles(files)
-        }
-      }
+      const files = Array.from(event.dataTransfer.files ?? [])
+      if (files.length > 0) onFiles(files)
     },
-    [onFile, onFiles],
+    [onFiles],
   )
 
   return (
@@ -73,9 +64,9 @@ export function ImportPanel({
           Fixkosten aus Kontoumsätzen ermitteln
         </h1>
         <p className="mx-auto max-w-xl text-pretty leading-relaxed text-muted-foreground">
-          Importiere einen oder mehrere CSV-Exporte deines Girokontos. Die App erkennt
-          wiederkehrende Buchungen, klassifiziert deren Intervall und prognostiziert die
-          Fixkosten der kommenden drei Monate. Duplikate werden automatisch entfernt.
+          Importiere den CSV-Export deines Girokontos. Die App erkennt wiederkehrende
+          Buchungen, klassifiziert deren Intervall und prognostiziert die Fixkosten der
+          kommenden drei Monate.
         </p>
       </div>
 
@@ -93,8 +84,6 @@ export function ImportPanel({
       </Alert>
 
       <AnonymizeSettings options={anonymizeOptions} onChange={onAnonymizeChange} />
-
-      <DateFieldSettings options={anonymizeOptions} onChange={onAnonymizeChange} />
 
       <Card>
         <CardHeader>
@@ -119,9 +108,9 @@ export function ImportPanel({
           >
             <UploadIcon className="size-8 text-muted-foreground" />
             <div className="flex flex-col items-center gap-1 text-center">
-              <p className="font-medium">Datei(en) hierher ziehen</p>
+              <p className="font-medium">Dateien hierher ziehen</p>
               <p className="text-sm text-muted-foreground">
-                oder unten auswählen &middot; .csv, .txt &middot; mehrere Dateien möglich
+                eine oder mehrere &middot; .csv, .txt
               </p>
             </div>
             <input
@@ -131,14 +120,8 @@ export function ImportPanel({
               multiple
               className="sr-only"
               onChange={(event) => {
-                const files = Array.from(event.target.files || [])
-                if (files.length > 0) {
-                  if (files.length === 1) {
-                    onFile(files[0])
-                  } else {
-                    onFiles(files)
-                  }
-                }
+                const files = Array.from(event.target.files ?? [])
+                if (files.length > 0) onFiles(files)
                 event.target.value = ''
               }}
             />
@@ -148,7 +131,7 @@ export function ImportPanel({
               disabled={isLoading}
             >
               <FileSpreadsheetIcon data-icon="inline-start" />
-              Datei(en) auswählen
+              Dateien auswählen
             </Button>
           </div>
 

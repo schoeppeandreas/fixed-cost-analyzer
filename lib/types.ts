@@ -135,6 +135,45 @@ export type ForecastMonth = {
   total: number
 }
 
+/**
+ * Eine periodische Position des laufenden Monats. Entweder bereits gebucht
+ * ('actual') oder noch erwartet laut Prognose ('forecast').
+ */
+export type CurrentMonthEntry = {
+  id: string
+  /** Schlüssel der zugehörigen Serie – Bindeglied zu Prognose & "bezahlt" */
+  seriesKey: string
+  /** ISO-Datum: bei 'actual' das Buchungsdatum, bei 'forecast' das erwartete */
+  date: string
+  label: string
+  categoryId: CategoryId
+  /** Betrag in EUR. Negativ = Ausgabe, positiv = Eingang */
+  amount: number
+  /** Ist die Position schon gebucht oder eine Prognose? */
+  kind: 'actual' | 'forecast'
+  /** Als bezahlt/erledigt markiert (bei 'actual' automatisch true) */
+  isPaid: boolean
+}
+
+/**
+ * Der laufende Monat als kombinierte Ansicht: bereits gebuchte periodische
+ * Kosten ('actual', automatisch als bezahlt) plus die noch nicht gebuchten
+ * periodischen Positionen aus der Prognose ('forecast'). Nur periodische
+ * (Serien-)Positionen, keine einmaligen/variablen Buchungen.
+ */
+export type CurrentMonthActuals = {
+  /** YYYY-MM */
+  month: string
+  monthLabel: string
+  /** Summe der Ausgaben (positiv dargestellt) */
+  expenses: number
+  /** Summe der Einnahmen */
+  income: number
+  /** Bis zu welchem Tag reichen die Ist-Daten (ISO) */
+  through: string
+  entries: CurrentMonthEntry[]
+}
+
 export type UserOverrides = {
   /** seriesKey -> categoryId */
   categories: Record<string, CategoryId>

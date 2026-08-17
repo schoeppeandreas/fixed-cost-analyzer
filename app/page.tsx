@@ -21,7 +21,6 @@ export default function Page() {
           <Dashboard {...analysis} />
         ) : (
           <ImportPanel
-            onFile={analysis.importFile}
             onFiles={analysis.importFiles}
             onDemo={(csv) => analysis.importCsvText(csv, 'Beispieldaten.csv')}
             isLoading={analysis.isLoading}

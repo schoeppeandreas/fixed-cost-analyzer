@@ -3,6 +3,8 @@ import type {
   AmountOutlier,
   AmountReviewReason,
   Category,
+  CurrentMonthActuals,
+  CurrentMonthEntry,
   ForecastEntry,
   ForecastMonth,
   IntervalKind,
@@ -416,9 +418,7 @@ export function buildSeries(
   categories: Category[],
   overrides: UserOverrides,
   referenceDate: string,
-  useDateField: import('./anonymizer').DateFieldOption = 'valuta',
 ): Series[] {
-  const { getEffectiveDate } = require('./date-utils')
   const groups = new Map<string, Transaction[]>()
 
   for (const tx of transactions) {
@@ -443,21 +443,13 @@ export function buildSeries(
   const series: Series[] = []
 
   for (const [key, txs] of groups) {
-    // Effektives Datum für jede Transaktion ermitteln
-    const txsWithEffectiveDate = txs.map(tx => ({
-      ...tx,
-      effectiveDate: getEffectiveDate(tx, useDateField)
-    }))
-    
-    const sorted = [...txsWithEffectiveDate].sort((a, b) =>
-      a.effectiveDate.localeCompare(b.effectiveDate)
-    )
+    const sorted = [...txs].sort((a, b) => a.date.localeCompare(b.date))
 
     // Buchungen am selben Tag zusammenfassen, damit Teilzahlungen die
     // Intervall-Erkennung nicht mit 0-Tage-Lücken verfälschen.
     const byDate = new Map<string, number>()
     for (const tx of sorted) {
-      byDate.set(tx.effectiveDate, (byDate.get(tx.effectiveDate) ?? 0) + tx.amount)
+      byDate.set(tx.date, (byDate.get(tx.date) ?? 0) + tx.amount)
     }
     const dates = [...byDate.keys()].sort()
 
@@ -593,9 +585,6 @@ const MONTH_NAMES = [
  * Erzeugt die Prognose für die kommenden `monthCount` Monate.
  * Startet am Tag nach dem Referenzdatum, damit bereits gebuchte Posten
  * nicht doppelt gezählt werden.
- *
- * @param startMonthOffset - Verschiebt den Startmonat relativ zum Folgemonat.
- *   0 = nächster Monat (Standard), -1 = aktueller Monat, -12 = 12 Monate zurück
  */
 export function buildForecast(
   series: Series[],
@@ -603,7 +592,6 @@ export function buildForecast(
   categories: Category[],
   monthCount = 3,
   minConfidence = 0.35,
-  startMonthOffset = 0,
 ): ForecastMonth[] {
   // Nur Kategorien mit bucket 'fixed' gehören in die Fixkosten-Prognose.
   // Einnahmen (z. B. Kindergeld) und variable Kosten (Einkauf, Tanken)
@@ -617,7 +605,7 @@ export function buildForecast(
 
   for (let i = 0; i < monthCount; i++) {
     const monthDate = new Date(
-      Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i + 1 + startMonthOffset, 1),
+      Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i + 1, 1),
     )
     months.push({
       month: `${monthDate.getUTCFullYear()}-${String(monthDate.getUTCMonth() + 1).padStart(2, '0')}`,
@@ -628,7 +616,7 @@ export function buildForecast(
   }
 
   const horizonEnd = new Date(
-    Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + monthCount + 1 + startMonthOffset, 0),
+    Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + monthCount + 1, 0),
   )
   const horizonEndIso = toIso(horizonEnd)
 
@@ -656,18 +644,10 @@ export function buildForecast(
         stepMonths * step,
         item.typicalDayOfMonth,
       )
-      // Standard: überspringe bereits vergangene erwartete Termine, damit
-      // bereits gebuchte Posten nicht doppelt in der Prognose erscheinen.
-      // Neu: Wenn der erwartete Termin im selben Monat wie das Referenzdatum
-      // liegt, dann darf dieser bereits gebuchte Posten im Ergebnis bleiben
-      // (z. B. für die Anzeige des aktuellen Monats). Dafür prüfen wir den
-      // Monat (YYYY-MM) und erlauben expectedDate <= referenceDate nur für
-      // den gleichen Monat.
-      const monthKey = expectedDate.slice(0, 7)
-      const referenceMonthKey = referenceDate.slice(0, 7)
-      if (expectedDate <= referenceDate && monthKey !== referenceMonthKey) continue
+      if (expectedDate <= referenceDate) continue
       if (expectedDate > horizonEndIso) break
 
+      const monthKey = expectedDate.slice(0, 7)
       const month = months.find((m) => m.month === monthKey)
       if (!month) continue
 
@@ -690,6 +670,119 @@ export function buildForecast(
   }
 
   return months
+}
+
+/**
+ * Kombinierte Ansicht des laufenden Monats mit ausschließlich PERIODISCHEN
+ * (Serien-)Positionen:
+ *  - Serie ist im Monat bereits gebucht  -> Ist-Position ('actual'), automatisch
+ *    als bezahlt markiert. Die Prognose wird für diese Serie NICHT aufgefüllt.
+ *  - Serie ist im Monat noch nicht gebucht -> erwartete Position aus der
+ *    Prognoselogik ('forecast'), abhakbar wie in den Prognosemonaten.
+ *
+ * Der Abgleich Ist <-> Prognose erfolgt über den stabilen `series.key`.
+ */
+export function buildCurrentMonthActuals(
+  series: Series[],
+  referenceDate: string,
+  categories: Category[],
+  overrides: UserOverrides,
+  minConfidence = 0.35,
+): CurrentMonthActuals {
+  const ref = toDate(referenceDate)
+  const year = ref.getUTCFullYear()
+  const monthIndex = ref.getUTCMonth()
+  const monthStartIso = toIso(new Date(Date.UTC(year, monthIndex, 1)))
+  const monthEndIso = toIso(new Date(Date.UTC(year, monthIndex + 1, 0)))
+  const monthKey = referenceDate.slice(0, 7)
+
+  // Nur Fixkosten-Kategorien gehören zu den periodischen Positionen.
+  const fixedIds = new Set(
+    categories.filter((category) => category.bucket === 'fixed').map((category) => category.id),
+  )
+
+  const entries: CurrentMonthEntry[] = []
+  let expenses = 0
+  let income = 0
+
+  for (const item of series) {
+    // Gleiche Filter wie in der Prognose, damit die Positionen konsistent sind.
+    if (item.excluded) continue
+    if (item.status !== 'active') continue
+    if (!fixedIds.has(item.categoryId)) continue
+    if (item.interval === 'irregular' || item.interval === 'weekly') continue
+    if (item.intervalConfidence < minConfidence) continue
+    if (item.occurrences < 2) continue
+
+    const label = overrides.names[item.key] ?? item.label
+
+    // 1) Ist diese Serie im laufenden Monat bereits gebucht?
+    const bookedTx = item.transactions.find(
+      (tx) => tx.date >= monthStartIso && tx.date <= monthEndIso,
+    )
+
+    if (bookedTx) {
+      // Bereits gebucht -> reale Position, automatisch bezahlt, kein Auffüllen.
+      entries.push({
+        id: bookedTx.id,
+        seriesKey: item.key,
+        date: bookedTx.date,
+        label,
+        categoryId: item.categoryId,
+        amount: bookedTx.amount,
+        kind: 'actual',
+        isPaid: true,
+      })
+      if (bookedTx.amount < 0) expenses += Math.abs(bookedTx.amount)
+      else income += bookedTx.amount
+      continue
+    }
+
+    // 2) Noch nicht gebucht -> erwartete Position aus der Prognoselogik.
+    const amount = item.forecastAmount
+    if (amount <= 0) continue
+
+    const stepMonths = INTERVAL_MONTHS[item.interval]
+    if (stepMonths < 1) continue
+
+    // Nächsten erwarteten Termin bestimmen, der in den laufenden Monat fällt.
+    let expectedDate: string | null = null
+    for (let step = 1; step <= Math.ceil(12 / stepMonths) + 1; step++) {
+      const candidate = addMonthsClamped(item.lastDate, stepMonths * step, item.typicalDayOfMonth)
+      if (candidate > monthEndIso) break
+      if (candidate >= monthStartIso && candidate <= monthEndIso) {
+        expectedDate = candidate
+        break
+      }
+    }
+    if (!expectedDate) continue
+
+    const paidKey = `${monthKey}:${item.key}`
+    const isPaid = overrides.paid[paidKey] ?? false
+
+    entries.push({
+      id: `forecast-${item.key}`,
+      seriesKey: item.key,
+      date: expectedDate,
+      label,
+      categoryId: item.categoryId,
+      amount: -amount,
+      kind: 'forecast',
+      isPaid,
+    })
+    expenses += amount
+  }
+
+  entries.sort((a, b) => a.date.localeCompare(b.date))
+
+  return {
+    month: monthKey,
+    monthLabel: `${MONTH_NAMES[monthIndex]} ${year}`,
+    expenses,
+    income,
+    through: referenceDate,
+    entries,
+  }
 }
 
 /** Monatlicher Durchschnitt der variablen Kosten über die letzten `monthsBack` Monate. */

@@ -37,12 +37,10 @@ export function Dashboard(props: DashboardProps) {
     forecast,
     categories,
     variableAverages,
+    currentMonthActuals,
     dataRange,
     fileName,
-    fileNames,
     redaction,
-    monthOffset,
-    setMonthOffset,
     setSeriesCategory,
     setSeriesAmount,
     setSeriesName,
@@ -153,13 +151,7 @@ export function Dashboard(props: DashboardProps) {
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-semibold tracking-tight">Fixkosten-Prognose</h1>
             <p className="text-sm text-muted-foreground">
-              {fileName ? (
-                <span className="font-medium" title={fileNames.length > 1 ? fileNames.join('\n') : undefined}>
-                  {fileNames.length > 1 ? `${fileNames.length} Dateien` : fileName}
-                </span>
-              ) : (
-                'Beispieldaten'
-              )}
+              {fileName ? <span className="font-medium">{fileName}</span> : 'Beispieldaten'}
               {dataRange ? (
                 <>
                   {' '}
@@ -266,12 +258,9 @@ export function Dashboard(props: DashboardProps) {
             series={series}
             seriesNames={props.overrides.names}
             paidEntries={props.overrides.paid}
+            currentMonthActuals={currentMonthActuals}
             onNameChange={setSeriesName}
             onTogglePaid={togglePaid}
-            monthOffset={monthOffset}
-            onMonthOffsetChange={setMonthOffset}
-            canNavigateBack={monthOffset > -1}
-            canNavigateForward={monthOffset < 0}
           />
         </TabsContent>
 

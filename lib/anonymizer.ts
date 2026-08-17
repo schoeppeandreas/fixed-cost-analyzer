@@ -20,8 +20,6 @@ import type { Transaction } from './types'
  * Zuordnungstabelle wird nach dem Import verworfen.
  */
 
-export type DateFieldOption = 'booking' | 'valuta' | 'auto'
-
 export type AnonymizeOptions = {
   /** Anonymisierung aktiv (Standard: an) */
   enabled: boolean
@@ -33,8 +31,6 @@ export type AnonymizeOptions = {
   redactNumbers: boolean
   /** E-Mail-Adressen und Telefonnummern ersetzen */
   redactContact: boolean
-  /** Welches Datumsfeld für Analyse verwenden */
-  useDateField: DateFieldOption
 }
 
 export const DEFAULT_ANONYMIZE_OPTIONS: AnonymizeOptions = {
@@ -43,7 +39,6 @@ export const DEFAULT_ANONYMIZE_OPTIONS: AnonymizeOptions = {
   redactIban: true,
   redactNumbers: true,
   redactContact: true,
-  useDateField: 'valuta', // Valutadatum bevorzugen
 }
 
 export type RedactionStats = {

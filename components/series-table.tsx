@@ -47,7 +47,7 @@ type SeriesTableProps = {
   onToggleConfirmed: (seriesKey: string) => void
 }
 
-type FilterMode = 'all' | 'review' | 'monthly' | 'periodic' | 'excluded'
+type FilterMode = 'all' | 'review' | 'irregular' | 'monthly' | 'periodic' | 'excluded'
 
 /** Kurzer Hinweistext für die Badge in der Tabelle. */
 const REVIEW_BADGE_TEXT: Record<string, string> = {
@@ -108,6 +108,7 @@ export function SeriesTable({
       .filter((item) => item.status === 'active')
       .filter((item) => {
         if (filter === 'review') return item.needsAmountReview
+        if (filter === 'irregular') return !item.excluded && item.interval === 'irregular'
         if (filter === 'monthly') return item.interval === 'monthly'
         if (filter === 'periodic')
           return item.interval !== 'monthly' && item.interval !== 'irregular'
@@ -145,6 +146,16 @@ export function SeriesTable({
               auf. Beispiele: unterschiedliche KFZ-Steuern für mehrere Fahrzeuge, Versicherungen
               mit variablen Terminen, oder einmalige Zahlungen. Du kannst sie hier ausschließen.
             </p>
+            {filter !== 'irregular' ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFilter('irregular')}
+                className="border-orange-300 bg-transparent text-orange-900 hover:bg-orange-100 hover:text-orange-900"
+              >
+                Nur diese anzeigen
+              </Button>
+            ) : null}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -196,6 +207,9 @@ export function SeriesTable({
           <ToggleGroupItem value="all">Alle</ToggleGroupItem>
           <ToggleGroupItem value="review" disabled={reviewCount === 0}>
             Zu prüfen{reviewCount > 0 ? ` (${reviewCount})` : ''}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="irregular" disabled={irregularCount === 0}>
+            Unregelmäßig{irregularCount > 0 ? ` (${irregularCount})` : ''}
           </ToggleGroupItem>
           <ToggleGroupItem value="monthly">Monatlich</ToggleGroupItem>
           <ToggleGroupItem value="periodic">Periodisch</ToggleGroupItem>

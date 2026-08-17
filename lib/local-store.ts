@@ -1,4 +1,3 @@
-import type { AnonymizeOptions } from './anonymizer'
 import type { Transaction, UserOverrides } from './types'
 
 /**
@@ -10,15 +9,11 @@ const DB_NAME = 'fixkosten-analyse'
 const DB_VERSION = 1
 const STORE = 'state'
 
-export type StoredState = {
+type StoredState = {
   transactions: Transaction[]
   overrides: UserOverrides
   fileName: string
   importedAt: string
-  /** Anonymisierungs-Einstellungen vom ersten Import */
-  anonymizeOptions?: AnonymizeOptions
-  /** Liste aller importierten Dateinamen */
-  fileNames?: string[]
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -112,23 +107,6 @@ export function normalizeOverrides(stored: Partial<UserOverrides> | undefined): 
     intervals: stored?.intervals ?? {},
     paid: stored?.paid ?? {},
     customCategories: stored?.customCategories ?? [],
-  }
-}
-
-/**
- * Normalisiert gespeicherten State für Abwärtskompatibilität.
- * Ältere Versionen kennen anonymizeOptions und fileNames noch nicht.
- */
-export function normalizeStoredState(stored: Partial<StoredState> | undefined): StoredState | null {
-  if (!stored) return null
-  
-  return {
-    transactions: stored.transactions ?? [],
-    overrides: normalizeOverrides(stored.overrides),
-    fileName: stored.fileName ?? '',
-    importedAt: stored.importedAt ?? '',
-    anonymizeOptions: stored.anonymizeOptions,
-    fileNames: stored.fileNames ?? (stored.fileName ? [stored.fileName] : []),
   }
 }
 
