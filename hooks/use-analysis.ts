@@ -20,8 +20,10 @@ import {
   EMPTY_OVERRIDES,
   loadState,
   normalizeOverrides,
+  normalizeStoredState,
   saveState,
 } from '@/lib/local-store'
+import { mergeTransactions } from '@/lib/transaction-merger'
 import type {
   Category,
   CategoryId,
@@ -35,6 +37,7 @@ export function useAnalysis() {
   const [overrides, setOverrides] = useState<UserOverrides>(EMPTY_OVERRIDES)
   const [parseResult, setParseResult] = useState<ParseResult | null>(null)
   const [fileName, setFileName] = useState<string>('')
+  const [fileNames, setFileNames] = useState<string[]>([])
   const [importedAt, setImportedAt] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const [isRestoring, setIsRestoring] = useState(true)
@@ -49,13 +52,19 @@ export function useAnalysis() {
   // Gespeicherten Zustand beim Start laden
   useEffect(() => {
     let cancelled = false
-    loadState().then((state) => {
+    loadState().then((stored) => {
       if (cancelled) return
+      const state = normalizeStoredState(stored ?? undefined)
       if (state) {
         setTransactions(state.transactions)
         setOverrides(normalizeOverrides(state.overrides))
         setFileName(state.fileName)
+        setFileNames(state.fileNames ?? [])
         setImportedAt(state.importedAt)
+        // Anonymisierungs-Einstellungen vom ersten Import wiederherstellen
+        if (state.anonymizeOptions) {
+          setAnonymizeOptions(state.anonymizeOptions)
+        }
       }
       setIsRestoring(false)
     })
@@ -69,8 +78,15 @@ export function useAnalysis() {
     if (isRestoring) return
     if (!persistLocally) return
     if (transactions.length === 0) return
-    saveState({ transactions, overrides, fileName, importedAt })
-  }, [transactions, overrides, fileName, importedAt, isRestoring, persistLocally])
+    saveState({
+      transactions,
+      overrides,
+      fileName,
+      fileNames,
+      importedAt,
+      anonymizeOptions,
+    })
+  }, [transactions, overrides, fileName, fileNames, importedAt, anonymizeOptions, isRestoring, persistLocally])
 
   const categories: Category[] = useMemo(
     () => [...overrides.customCategories, ...BUILTIN_CATEGORIES],
@@ -86,8 +102,8 @@ export function useAnalysis() {
   }, [transactions])
 
   const series = useMemo(
-    () => buildSeries(transactions, categories, overrides, referenceDate),
-    [transactions, categories, overrides, referenceDate],
+    () => buildSeries(transactions, categories, overrides, referenceDate, anonymizeOptions.useDateField),
+    [transactions, categories, overrides, referenceDate, anonymizeOptions.useDateField],
   )
 
   // Erweiterte Prognose: 1 Monat zurück + 3 vorwärts = 4 Monate
@@ -97,8 +113,12 @@ export function useAnalysis() {
   )
 
   // Sichtbare Prognose: 3-Monats-Fenster basierend auf monthOffset
+  // Standardverhalten: wenn monthOffset === 0, zeige den aktuellen Monat
+  // inklusive bereits erwarteter (aber bereits gebuchter) Posten innerhalb
+  // dieses Monats. extendedForecast ist so gebaut, dass Index 1 dem
+  // aktuellen Monat entspricht (startMonthOffset = -1 in buildForecast).
   const forecast = useMemo(() => {
-    const startIndex = 1 + monthOffset // 1 = Offset für "heute"
+    const startIndex = 1 + monthOffset // 1 = Offset für "heute" / aktueller Monat
     return extendedForecast.slice(startIndex, startIndex + 3)
   }, [extendedForecast, monthOffset])
 
@@ -152,6 +172,8 @@ export function useAnalysis() {
       try {
         const text = await readFileWithEncoding(file)
         const result = importCsvText(text, file.name)
+        // Beim ersten Import: Dateinamen-Liste initialisieren
+        setFileNames([file.name])
         return result
       } catch (err) {
         console.log('[v0] importFile failed:', err)
@@ -162,6 +184,81 @@ export function useAnalysis() {
       }
     },
     [importCsvText],
+  )
+
+  /**
+   * Importiert mehrere CSV-Dateien gleichzeitig.
+   * Duplikate werden VOR der Anonymisierung gefiltert, dann wird
+   * die gesamte Datenmenge einmalig anonymisiert.
+   */
+  const importFiles = useCallback(
+    async (files: File[]) => {
+      setIsLoading(true)
+      setError(null)
+      
+      try {
+        const allTransactions: Transaction[] = []
+        const fileNamesList: string[] = []
+        let totalRows = 0
+        let totalSkipped = 0
+        
+        // 1. Alle Dateien parsen (OHNE Anonymisierung)
+        for (const file of files) {
+          try {
+            const text = await readFileWithEncoding(file)
+            const result = parseBankCsv(text)
+            
+            if (result.transactions.length > 0) {
+              allTransactions.push(...result.transactions)
+              fileNamesList.push(file.name)
+              totalRows += result.totalRows
+              totalSkipped += result.skippedRows
+            }
+          } catch (err) {
+            console.error(`[importFiles] Failed to parse ${file.name}:`, err)
+            // Weiter mit nächster Datei
+          }
+        }
+        
+        if (allTransactions.length === 0) {
+          setError('Keine gültigen Transaktionen in den Dateien gefunden.')
+          return null
+        }
+        
+        // 2. Duplikate entfernen VOR der Anonymisierung
+        const { merged, duplicates } = mergeTransactions([], allTransactions)
+        
+        // 3. Jetzt erst anonymisieren (einmalig für alle Daten)
+        const anonymized = anonymizeTransactions(merged, anonymizeOptions)
+        
+        // 4. State aktualisieren
+        setTransactions(anonymized.transactions)
+        setRedaction(anonymized)
+        setFileNames(fileNamesList)
+        setFileName(fileNamesList.length > 1
+          ? `${fileNamesList.length} Dateien`
+          : fileNamesList[0]
+        )
+        setImportedAt(new Date().toISOString())
+        
+        // 5. Erfolgs-Feedback
+        return {
+          success: true,
+          files: fileNamesList.length,
+          total: merged.length,
+          duplicates,
+          totalRows,
+          totalSkipped,
+        }
+      } catch (err) {
+        console.error('[importFiles] failed:', err)
+        setError('Fehler beim Importieren der Dateien.')
+        return null
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [anonymizeOptions],
   )
 
   const setSeriesCategory = useCallback((seriesKey: string, categoryId: CategoryId) => {
@@ -304,6 +401,7 @@ export function useAnalysis() {
     referenceDate,
     dataRange,
     fileName,
+    fileNames,
     importedAt,
     isLoading,
     isRestoring,
@@ -317,6 +415,7 @@ export function useAnalysis() {
     monthOffset,
     setMonthOffset,
     importFile,
+    importFiles,
     importCsvText,
     setSeriesCategory,
     setSeriesAmount,

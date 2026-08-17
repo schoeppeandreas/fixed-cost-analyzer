@@ -13,9 +13,17 @@ import {
 } from '@/components/ui/card'
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
-import type { AnonymizeOptions } from '@/lib/anonymizer'
+import type { AnonymizeOptions, DateFieldOption } from '@/lib/anonymizer'
+import { DATE_FIELD_DESCRIPTIONS } from '@/lib/date-utils'
 
 type AnonymizeSettingsProps = {
   options: AnonymizeOptions

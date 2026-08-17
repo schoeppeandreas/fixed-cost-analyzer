@@ -416,7 +416,9 @@ export function buildSeries(
   categories: Category[],
   overrides: UserOverrides,
   referenceDate: string,
+  useDateField: import('./anonymizer').DateFieldOption = 'valuta',
 ): Series[] {
+  const { getEffectiveDate } = require('./date-utils')
   const groups = new Map<string, Transaction[]>()
 
   for (const tx of transactions) {
@@ -441,13 +443,21 @@ export function buildSeries(
   const series: Series[] = []
 
   for (const [key, txs] of groups) {
-    const sorted = [...txs].sort((a, b) => a.date.localeCompare(b.date))
+    // Effektives Datum für jede Transaktion ermitteln
+    const txsWithEffectiveDate = txs.map(tx => ({
+      ...tx,
+      effectiveDate: getEffectiveDate(tx, useDateField)
+    }))
+    
+    const sorted = [...txsWithEffectiveDate].sort((a, b) =>
+      a.effectiveDate.localeCompare(b.effectiveDate)
+    )
 
     // Buchungen am selben Tag zusammenfassen, damit Teilzahlungen die
     // Intervall-Erkennung nicht mit 0-Tage-Lücken verfälschen.
     const byDate = new Map<string, number>()
     for (const tx of sorted) {
-      byDate.set(tx.date, (byDate.get(tx.date) ?? 0) + tx.amount)
+      byDate.set(tx.effectiveDate, (byDate.get(tx.effectiveDate) ?? 0) + tx.amount)
     }
     const dates = [...byDate.keys()].sort()
 
@@ -646,10 +656,18 @@ export function buildForecast(
         stepMonths * step,
         item.typicalDayOfMonth,
       )
-      if (expectedDate <= referenceDate) continue
+      // Standard: überspringe bereits vergangene erwartete Termine, damit
+      // bereits gebuchte Posten nicht doppelt in der Prognose erscheinen.
+      // Neu: Wenn der erwartete Termin im selben Monat wie das Referenzdatum
+      // liegt, dann darf dieser bereits gebuchte Posten im Ergebnis bleiben
+      // (z. B. für die Anzeige des aktuellen Monats). Dafür prüfen wir den
+      // Monat (YYYY-MM) und erlauben expectedDate <= referenceDate nur für
+      // den gleichen Monat.
+      const monthKey = expectedDate.slice(0, 7)
+      const referenceMonthKey = referenceDate.slice(0, 7)
+      if (expectedDate <= referenceDate && monthKey !== referenceMonthKey) continue
       if (expectedDate > horizonEndIso) break
 
-      const monthKey = expectedDate.slice(0, 7)
       const month = months.find((m) => m.month === monthKey)
       if (!month) continue
 

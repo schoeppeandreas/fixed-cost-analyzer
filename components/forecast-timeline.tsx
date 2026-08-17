@@ -108,7 +108,7 @@ export function ForecastTimeline({
         
         <div className="flex flex-col items-center gap-1">
           <div className="text-sm font-medium">
-            {monthOffset === 0 ? 'Aktuelle Prognose' :
+            {monthOffset === 0 ? 'Aktueller Monat (inkl. Prognose)' :
              monthOffset < 0 ? `${Math.abs(monthOffset)} Monat${Math.abs(monthOffset) === 1 ? '' : 'e'} zurück` :
              `${monthOffset} Monat${monthOffset === 1 ? '' : 'e'} voraus`}
           </div>
@@ -119,7 +119,7 @@ export function ForecastTimeline({
               onClick={() => onMonthOffsetChange?.(0)}
               className="h-6 text-xs"
             >
-              Zurück zur aktuellen Prognose
+              Zurück zum aktuellen Monat
             </Button>
           )}
         </div>
