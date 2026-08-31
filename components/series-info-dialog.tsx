@@ -25,6 +25,7 @@ export function SeriesInfoDialog({
   onToggleGroceries?: (seriesKey: string) => void
 }) {
   const isGroceries = series?.categoryId === 'groceries'
+  const toggleGroceries = typeof onToggleGroceries === 'function' ? onToggleGroceries : () => undefined
   const transactionsDesc = series
     ? [...series.transactions].sort((a, b) => (a.date < b.date ? 1 : -1))
     : []
@@ -95,7 +96,7 @@ export function SeriesInfoDialog({
               variant={isGroceries ? 'outline' : 'default'}
               className="w-full gap-2"
               onClick={() => {
-                onToggleGroceries?.(series.key)
+                toggleGroceries(series.key)
                 onOpenChange(false)
               }}
             >
