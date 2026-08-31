@@ -960,7 +960,7 @@ export function buildFoodForecast(
     total: number
     occurrences: number
     isCurrent: boolean
-    items: Array<{ label: string; total: number; occurrences: number }>
+    items: Array<{ key: string; label: string; categoryId: string; total: number; occurrences: number }>
   }>
 } {
   const groceriesId = categories.find((category) => category.id === 'groceries')?.id ?? 'groceries'
@@ -976,7 +976,14 @@ export function buildFoodForecast(
       isCurrent: offset === 0,
     }
   })
-  const totals = new Map<string, { total: number; occurrences: number; items: Map<string, { label: string; total: number; occurrences: number }> }>()
+  const totals = new Map<
+    string,
+    {
+      total: number
+      occurrences: number
+      items: Map<string, { key: string; label: string; categoryId: string; total: number; occurrences: number }>
+    }
+  >()
   months.forEach(({ month }) => totals.set(month, { total: 0, occurrences: 0, items: new Map() }))
 
   for (const item of series) {
@@ -988,7 +995,8 @@ export function buildFoodForecast(
       if (!current) continue
       current.total += Math.abs(transaction.amount)
       current.occurrences += 1
-      const entry = current.items.get(item.key) ?? { label: item.label, total: 0, occurrences: 0 }
+      const entry =
+        current.items.get(item.key) ?? { key: item.key, label: item.label, categoryId: item.categoryId, total: 0, occurrences: 0 }
       entry.total += Math.abs(transaction.amount)
       entry.occurrences += 1
       current.items.set(item.key, entry)

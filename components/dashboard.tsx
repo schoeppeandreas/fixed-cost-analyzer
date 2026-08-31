@@ -280,6 +280,7 @@ export function Dashboard(props: DashboardProps) {
             series={series}
             categories={categories}
             referenceDate={props.referenceDate}
+            onCategoryChange={setSeriesCategory}
           />
         </TabsContent>
 

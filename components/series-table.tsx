@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { AmountDecisionDialog } from '@/components/amount-decision-dialog'
 import { IntervalEditDialog } from '@/components/interval-edit-dialog'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { CategoryEditDialog } from '@/components/category-edit-dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -861,50 +861,15 @@ export function SeriesTable({
         </Table>
       </div>
 
-      <Dialog
+      <CategoryEditDialog
+        item={rows.find((entry) => entry.key === editingCategoryKey) ?? null}
+        categories={categories}
         open={editingCategoryKey !== null}
         onOpenChange={(open) => {
           if (!open) setEditingCategoryKey(null)
         }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Serie bearbeiten</DialogTitle>
-            <DialogDescription>
-              Kategorie für diese Serie ändern. Die Änderung gilt für alle Buchungen dieser Serie.
-            </DialogDescription>
-          </DialogHeader>
-          {(() => {
-            const item = rows.find((entry) => entry.key === editingCategoryKey)
-            if (!item) return null
-            return (
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-medium">{item.label}</span>
-                <Select
-                  value={item.categoryId}
-                  onValueChange={(value) => {
-                    onCategoryChange(item.key, String(value))
-                    setEditingCategoryKey(null)
-                  }}
-                >
-                  <SelectTrigger aria-label="Kategorie auswählen">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-            )
-          })()}
-        </DialogContent>
-      </Dialog>
+        onCategoryChange={onCategoryChange}
+      />
 
       <AmountDecisionDialog
         series={rows.find((item) => item.key === editingKey) ?? null}
