@@ -617,7 +617,7 @@ export function SeriesTable({
                         type="button"
                         className="min-w-0 truncate text-left font-medium hover:text-primary hover:underline hover:underline-offset-2"
                         title={`Nur ${item.label} anzeigen`}
-                        onClick={() => setQuery(item.label)}
+                        onClick={() => setEditingCategoryKey(item.key)}
                       >
                         {item.label}
                       </button>
