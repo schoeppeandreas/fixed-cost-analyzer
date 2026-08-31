@@ -16,16 +16,28 @@ export function FoodForecast({ series, categories, referenceDate }: { series: Se
           Lebensmittelkosten
         </h2>
         <p className="text-sm text-muted-foreground">
-          Übersicht der letzten drei abgeschlossenen Monate. Es werden nur tatsächliche Ausgaben der Kategorie „Lebensmittel & Einkauf“ berücksichtigt.
+          Übersicht der letzten drei abgeschlossenen Monate sowie des laufenden Monats. Es werden nur tatsächliche Ausgaben der Kategorie „Lebensmittel & Einkauf“ berücksichtigt.
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         {history.months.map((month) => (
-          <article key={month.month} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+          <article
+            key={month.month}
+            className={`flex flex-col gap-4 rounded-lg border p-5 ${
+              month.isCurrent ? 'border-primary/40 bg-primary/5' : 'border-border bg-card'
+            }`}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm text-muted-foreground">{month.monthLabel}</p>
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {month.monthLabel}
+                  {month.isCurrent ? (
+                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                      läuft noch
+                    </span>
+                  ) : null}
+                </p>
                 <p className="font-mono text-2xl font-semibold">{formatEuro(month.total)}</p>
               </div>
               <span className="text-right text-xs text-muted-foreground">{month.occurrences} Buchungen</span>

@@ -946,19 +946,34 @@ export function buildCurrentMonthActuals(
   }
 }
 
-/** Tatsächliche Lebensmittelkosten der letzten drei abgeschlossenen Monate. */
+/** Tatsächliche Lebensmittelkosten der letzten drei abgeschlossenen Monate
+ * plus der laufende (noch unvollständige) Monat. Die Monate sind
+ * aufsteigend sortiert, sodass der aktuelle Monat zuletzt (rechts) steht. */
 export function buildFoodForecast(
   series: Series[],
   categories: Category[],
   referenceDate: string,
-): { months: Array<{ month: string; monthLabel: string; total: number; occurrences: number; items: Array<{ label: string; total: number; occurrences: number }> }> } {
+): {
+  months: Array<{
+    month: string
+    monthLabel: string
+    total: number
+    occurrences: number
+    isCurrent: boolean
+    items: Array<{ label: string; total: number; occurrences: number }>
+  }>
+} {
   const groceriesId = categories.find((category) => category.id === 'groceries')?.id ?? 'groceries'
   const end = toDate(referenceDate)
-  const months = Array.from({ length: 3 }, (_, index) => {
-    const date = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - index - 1, 1))
+  // Offset 0 = laufender Monat (unvollständig), 1-3 = die letzten drei
+  // bereits abgeschlossenen Monate. Absteigend sortiert, damit der
+  // aktuelle Monat als letztes (rechts) angezeigt wird.
+  const months = [3, 2, 1, 0].map((offset) => {
+    const date = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - offset, 1))
     return {
       month: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`,
       monthLabel: `${MONTH_NAMES[date.getUTCMonth()]} ${date.getUTCFullYear()}`,
+      isCurrent: offset === 0,
     }
   })
   const totals = new Map<string, { total: number; occurrences: number; items: Map<string, { label: string; total: number; occurrences: number }> }>()
@@ -981,13 +996,14 @@ export function buildFoodForecast(
   }
 
   return {
-    months: months.map(({ month, monthLabel }) => {
+    months: months.map(({ month, monthLabel, isCurrent }) => {
       const current = totals.get(month)!
       return {
         month,
         monthLabel,
         total: current.total,
         occurrences: current.occurrences,
+        isCurrent,
         items: [...current.items.values()].sort((a, b) => b.total - a.total),
       }
     }),
