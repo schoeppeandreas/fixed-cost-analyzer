@@ -16,7 +16,7 @@ import {
 } from 'lucide-react'
 import { AmountDecisionDialog } from '@/components/amount-decision-dialog'
 import { IntervalEditDialog } from '@/components/interval-edit-dialog'
-import { CategoryEditDialog } from '@/components/category-edit-dialog'
+import { SeriesInfoDialog } from '@/components/series-info-dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -49,6 +49,7 @@ type SeriesTableProps = {
   userIntervals?: Record<string, string>
   onCategoryChange: (seriesKey: string, categoryId: string) => void
   onReviewFood?: (seriesKey: string) => void
+  onToggleGroceries: (seriesKey: string) => void
   onAmountChange: (seriesKey: string, amount: number | null) => void
   onIntervalChange?: (seriesKey: string, interval: string | null) => void
   onToggleExcluded: (seriesKey: string) => void
@@ -91,6 +92,7 @@ export function SeriesTable({
   userIntervals = {},
   onCategoryChange,
   onReviewFood,
+  onToggleGroceries,
   onAmountChange,
   onIntervalChange,
   onToggleExcluded,
@@ -861,14 +863,13 @@ export function SeriesTable({
         </Table>
       </div>
 
-      <CategoryEditDialog
-        item={rows.find((entry) => entry.key === editingCategoryKey) ?? null}
-        categories={categories}
+      <SeriesInfoDialog
+        series={rows.find((entry) => entry.key === editingCategoryKey) ?? null}
         open={editingCategoryKey !== null}
         onOpenChange={(open) => {
           if (!open) setEditingCategoryKey(null)
         }}
-        onCategoryChange={onCategoryChange}
+        onToggleGroceries={onToggleGroceries}
       />
 
       <AmountDecisionDialog

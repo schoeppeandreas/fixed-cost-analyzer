@@ -4,24 +4,22 @@ import { useState } from 'react'
 import { ShoppingCartIcon } from 'lucide-react'
 import type { Category, Series } from '@/lib/types'
 import { buildFoodForecast, formatEuro } from '@/lib/analyzer'
-import { CategoryEditDialog } from '@/components/category-edit-dialog'
+import { SeriesInfoDialog } from '@/components/series-info-dialog'
 
 export function FoodForecast({
   series,
   categories,
   referenceDate,
-  onCategoryChange,
+  onToggleGroceries,
 }: {
   series: Series[]
   categories: Category[]
   referenceDate: string
-  onCategoryChange: (seriesKey: string, categoryId: string) => void
+  onToggleGroceries: (seriesKey: string) => void
 }) {
   const history = buildFoodForecast(series, categories, referenceDate)
   const [editingKey, setEditingKey] = useState<string | null>(null)
-  const editingItem = history.months
-    .flatMap((month) => month.items)
-    .find((item) => item.key === editingKey)
+  const editingSeries = series.find((item) => item.key === editingKey) ?? null
 
   return (
     <section className="flex flex-col gap-5">
@@ -71,14 +69,13 @@ export function FoodForecast({
         ))}
       </div>
 
-      <CategoryEditDialog
-        item={editingItem ?? null}
-        categories={categories}
+      <SeriesInfoDialog
+        series={editingSeries}
         open={editingKey !== null}
         onOpenChange={(open) => {
           if (!open) setEditingKey(null)
         }}
-        onCategoryChange={onCategoryChange}
+        onToggleGroceries={onToggleGroceries}
       />
     </section>
   )

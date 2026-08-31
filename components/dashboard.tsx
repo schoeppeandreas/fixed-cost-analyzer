@@ -280,7 +280,7 @@ export function Dashboard(props: DashboardProps) {
             series={series}
             categories={categories}
             referenceDate={props.referenceDate}
-            onCategoryChange={setSeriesCategory}
+            onToggleGroceries={toggleSeriesGroceries}
           />
         </TabsContent>
 
@@ -295,6 +295,7 @@ export function Dashboard(props: DashboardProps) {
             userIntervals={props.overrides.intervals}
             onCategoryChange={setSeriesCategory}
             onReviewFood={setReviewAsFood}
+            onToggleGroceries={toggleSeriesGroceries}
             onAmountChange={setSeriesAmount}
             onIntervalChange={setSeriesInterval}
             onToggleExcluded={toggleExcluded}
