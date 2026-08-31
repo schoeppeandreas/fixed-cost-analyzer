@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { AmountDecisionDialog } from '@/components/amount-decision-dialog'
 import { IntervalEditDialog } from '@/components/interval-edit-dialog'
+import { SeriesInfoDialog } from '@/components/series-info-dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -48,6 +49,7 @@ type SeriesTableProps = {
   userIntervals?: Record<string, string>
   onCategoryChange: (seriesKey: string, categoryId: string) => void
   onReviewFood?: (seriesKey: string) => void
+  onToggleGroceries: (seriesKey: string) => void
   onAmountChange: (seriesKey: string, amount: number | null) => void
   onIntervalChange?: (seriesKey: string, interval: string | null) => void
   onToggleExcluded: (seriesKey: string) => void
@@ -90,6 +92,7 @@ export function SeriesTable({
   userIntervals = {},
   onCategoryChange,
   onReviewFood,
+  onToggleGroceries,
   onAmountChange,
   onIntervalChange,
   onToggleExcluded,
@@ -105,6 +108,7 @@ export function SeriesTable({
   const [showEnded, setShowEnded] = useState(false)
   const [categoryFilters, setCategoryFilters] = useState<string[]>([])
   const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [editingCategoryKey, setEditingCategoryKey] = useState<string | null>(null)
   const [editingInterval, setEditingInterval] = useState<string | null>(null)
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'name',
@@ -143,18 +147,33 @@ export function SeriesTable({
     )
   }
 
-  const reviewCount = useMemo(
-    () => series.filter((item) => item.status === 'active' && item.needsAmountReview).length,
-    [series],
-  )
+  const statusCounts = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const matchesVisibleBase = (item: Series) => {
+      if (item.status === 'ended') return false
+      if (categoryFilters.length > 0 && !categoryFilters.includes(item.categoryId)) return false
+      if (needle && !`${item.label} ${item.counterparty}`.toLowerCase().includes(needle)) return false
+      const bucket = categories.find((category) => category.id === item.categoryId)?.bucket
+      if (bucket === 'variable') return showVariableCosts
+      if (bucket === 'fixed') return showFixedCosts
+      if (bucket === 'ignored') return showTransfers
+      if (item.categoryId === 'income') return showIncome
+      return true
+    }
 
-  const irregularCount = useMemo(
-    () =>
-      series.filter(
-        (item) => item.status === 'active' && !item.excluded && item.interval === 'irregular',
-      ).length,
-    [series],
-  )
+    return series.reduce(
+      (counts, item) => {
+        if (!matchesVisibleBase(item)) return counts
+        if (item.needsAmountReview) counts.review += 1
+        if (!item.excluded && item.interval === 'irregular') counts.irregular += 1
+        return counts
+      },
+      { review: 0, irregular: 0 },
+    )
+  }, [series, query, categories, categoryFilters, showVariableCosts, showFixedCosts, showIncome, showTransfers])
+
+  const reviewCount = statusCounts.review
+  const irregularCount = statusCounts.irregular
 
   const categoryLabel = (category: (typeof categories)[number]) => {
     const labels: Record<string, string> = {
@@ -546,6 +565,7 @@ export function SeriesTable({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-14 text-right">Nr.</TableHead>
               <TableHead>{sortButton('name', 'Empfänger')}</TableHead>
               <TableHead className="text-center">Variabel</TableHead>
               <TableHead className="text-center">Einkauf</TableHead>
@@ -565,24 +585,41 @@ export function SeriesTable({
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={11} className="py-10 text-center text-muted-foreground">
                   Keine Serien für diesen Filter.
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((item) => (
+              rows.map((item, index) => (
                 <TableRow
                   key={item.key}
-                  className={cn(item.excluded && 'opacity-50')}
+                  className={cn('cursor-pointer transition-colors hover:bg-muted/50', item.excluded && 'opacity-50')}
                   data-state={item.confirmed ? 'selected' : undefined}
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement
+                    if (target.closest('button, [role="button"], input')) return
+                    setEditingCategoryKey(item.key)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setEditingCategoryKey(item.key)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${item.label} bearbeiten`}
                 >
+                  <TableCell className="w-14 text-right font-mono text-sm tabular-nums text-muted-foreground">
+                    {index + 1}
+                  </TableCell>
                   <TableCell className="max-w-[220px]">
                     <div className="flex flex-col gap-1">
                       <button
                         type="button"
                         className="min-w-0 truncate text-left font-medium hover:text-primary hover:underline hover:underline-offset-2"
                         title={`Nur ${item.label} anzeigen`}
-                        onClick={() => setQuery(item.label)}
+                        onClick={() => setEditingCategoryKey(item.key)}
                       >
                         {item.label}
                       </button>
@@ -825,6 +862,15 @@ export function SeriesTable({
           </TableBody>
         </Table>
       </div>
+
+      <SeriesInfoDialog
+        series={rows.find((entry) => entry.key === editingCategoryKey) ?? null}
+        open={editingCategoryKey !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingCategoryKey(null)
+        }}
+        onToggleGroceries={onToggleGroceries}
+      />
 
       <AmountDecisionDialog
         series={rows.find((item) => item.key === editingKey) ?? null}

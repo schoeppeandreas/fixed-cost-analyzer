@@ -264,6 +264,10 @@ function classifyInterval(gaps: number[]): {
   return { interval: best.kind, confidence, medianGap }
 }
 
+/** Ab so vielen Tagen ohne Buchung gilt eine für die Prognose freigegebene
+ * unregelmäßige Serie (z. B. jährliche KFZ-Steuer) als beendet. */
+const IRREGULAR_FORECAST_GRACE_DAYS = 370
+
 /** Ermittelt, ob eine Serie noch aktiv ist. */
 function determineStatus(
   interval: IntervalKind,
@@ -275,9 +279,12 @@ function determineStatus(
     return occurrences < 2 ? 'onetime' : daysSinceLast > 200 ? 'ended' : 'active'
   }
 
-  // Explizit für die Prognose freigegebene unregelmäßige Serien dürfen nicht
-  // wegen einer langen Lücke automatisch unter „Beendet“ verschwinden.
-  if (interval === 'irregularForecast') return 'active'
+  // Explizit für die Prognose freigegebene unregelmäßige Serien haben oft große
+  // Lücken (z. B. jährliche KFZ-Steuer). Erst nach deutlich über einem Jahr
+  // ohne Buchung gelten sie als beendet, damit sie nicht endlos aktiv bleiben.
+  if (interval === 'irregularForecast') {
+    return daysSinceLast > IRREGULAR_FORECAST_GRACE_DAYS ? 'ended' : 'active'
+  }
 
   const expectedGap = INTERVAL_MONTHS[interval] * 30.4
   // Toleranz: 2 verpasste Zyklen plus Puffer, mindestens 45 Tage
@@ -428,6 +435,31 @@ export function buildSeries(
 ): Series[] {
   const groups = new Map<string, Transaction[]>()
 
+  // Manche Bankexporte liefern keine eigene Spalte für die Gegenkonto-IBAN;
+  // dann greift ein Fallback, der die ganze Zeile nach einer IBAN-ähnlichen
+  // Zeichenfolge durchsucht (z. B. bei Kartenumsätzen). Dabei kann die
+  // *eigene* Konto-IBAN erfasst werden, die auf jeder Buchung gleich ist –
+  // unabhängig vom tatsächlichen Händler. Um zu verhindern, dass dadurch
+  // völlig unterschiedliche Empfänger (Supermarkt, Tankstelle, Spa, ...) in
+  // einer Serie landen, ermitteln wir vorab, wie viele unterschiedliche
+  // Empfänger hinter jeder IBAN stecken. Steht eine IBAN für auffällig viele
+  // verschiedene Empfänger, ist sie offensichtlich kein stabiler
+  // Zahlungspartner-Schlüssel und wird beim Gruppieren ignoriert.
+  const MAX_DISTINCT_COUNTERPARTIES_PER_ACCOUNT = 3
+  const counterpartiesByAccount = new Map<string, Set<string>>()
+  for (const tx of transactions) {
+    const accountKey = tx.accountIdentifier?.replace(/\s+/g, '').toUpperCase()
+    if (!accountKey) continue
+    const set = counterpartiesByAccount.get(accountKey) ?? new Set<string>()
+    set.add(normalizeCounterparty(tx.counterparty, tx.purpose))
+    counterpartiesByAccount.set(accountKey, set)
+  }
+  const unreliableAccountKeys = new Set(
+    [...counterpartiesByAccount.entries()]
+      .filter(([, counterparties]) => counterparties.size > MAX_DISTINCT_COUNTERPARTIES_PER_ACCOUNT)
+      .map(([accountKey]) => accountKey),
+  )
+
   for (const tx of transactions) {
     // Eingänge und Ausgaben desselben Empfängers getrennt gruppieren.
     // Sonst würde z. B. eine Rückerstattung die Kategorie und den
@@ -437,7 +469,8 @@ export function buildSeries(
   // Zahlungspartner-Schlüssel. Dadurch werden z. B. "Bundeskasse" und
   // "Bundeskasse DO Kiel" trotz unterschiedlicher Namen zusammengeführt.
   // Die Zahlungsrichtung und der fachliche Zahlungstyp bleiben getrennt.
-  const accountKey = tx.accountIdentifier?.replace(/\s+/g, '').toUpperCase()
+  const rawAccountKey = tx.accountIdentifier?.replace(/\s+/g, '').toUpperCase()
+  const accountKey = rawAccountKey && !unreliableAccountKeys.has(rawAccountKey) ? rawAccountKey : undefined
   const contract = contractDiscriminator(tx.purpose)
   const paymentType = contract ? contract.split('#')[0] : 'other'
   const key = accountKey
@@ -913,22 +946,44 @@ export function buildCurrentMonthActuals(
   }
 }
 
-/** Tatsächliche Lebensmittelkosten der letzten drei abgeschlossenen Monate. */
+/** Tatsächliche Lebensmittelkosten der letzten drei abgeschlossenen Monate
+ * plus der laufende (noch unvollständige) Monat. Die Monate sind
+ * aufsteigend sortiert, sodass der aktuelle Monat zuletzt (rechts) steht. */
 export function buildFoodForecast(
   series: Series[],
   categories: Category[],
   referenceDate: string,
-): { months: Array<{ month: string; monthLabel: string; total: number; occurrences: number; items: Array<{ label: string; total: number; occurrences: number }> }> } {
+): {
+  months: Array<{
+    month: string
+    monthLabel: string
+    total: number
+    occurrences: number
+    isCurrent: boolean
+    items: Array<{ key: string; label: string; categoryId: string; total: number; occurrences: number }>
+  }>
+} {
   const groceriesId = categories.find((category) => category.id === 'groceries')?.id ?? 'groceries'
   const end = toDate(referenceDate)
-  const months = Array.from({ length: 3 }, (_, index) => {
-    const date = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - index - 1, 1))
+  // Offset 0 = laufender Monat (unvollständig), 1-3 = die letzten drei
+  // bereits abgeschlossenen Monate. Absteigend sortiert, damit der
+  // aktuelle Monat als letztes (rechts) angezeigt wird.
+  const months = [3, 2, 1, 0].map((offset) => {
+    const date = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - offset, 1))
     return {
       month: `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`,
       monthLabel: `${MONTH_NAMES[date.getUTCMonth()]} ${date.getUTCFullYear()}`,
+      isCurrent: offset === 0,
     }
   })
-  const totals = new Map<string, { total: number; occurrences: number; items: Map<string, { label: string; total: number; occurrences: number }> }>()
+  const totals = new Map<
+    string,
+    {
+      total: number
+      occurrences: number
+      items: Map<string, { key: string; label: string; categoryId: string; total: number; occurrences: number }>
+    }
+  >()
   months.forEach(({ month }) => totals.set(month, { total: 0, occurrences: 0, items: new Map() }))
 
   for (const item of series) {
@@ -940,7 +995,8 @@ export function buildFoodForecast(
       if (!current) continue
       current.total += Math.abs(transaction.amount)
       current.occurrences += 1
-      const entry = current.items.get(item.key) ?? { label: item.label, total: 0, occurrences: 0 }
+      const entry =
+        current.items.get(item.key) ?? { key: item.key, label: item.label, categoryId: item.categoryId, total: 0, occurrences: 0 }
       entry.total += Math.abs(transaction.amount)
       entry.occurrences += 1
       current.items.set(item.key, entry)
@@ -948,13 +1004,14 @@ export function buildFoodForecast(
   }
 
   return {
-    months: months.map(({ month, monthLabel }) => {
+    months: months.map(({ month, monthLabel, isCurrent }) => {
       const current = totals.get(month)!
       return {
         month,
         monthLabel,
         total: current.total,
         occurrences: current.occurrences,
+        isCurrent,
         items: [...current.items.values()].sort((a, b) => b.total - a.total),
       }
     }),
