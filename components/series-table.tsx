@@ -143,18 +143,33 @@ export function SeriesTable({
     )
   }
 
-  const reviewCount = useMemo(
-    () => series.filter((item) => item.status === 'active' && item.needsAmountReview).length,
-    [series],
-  )
+  const statusCounts = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const matchesVisibleBase = (item: Series) => {
+      if (item.status === 'ended') return false
+      if (categoryFilters.length > 0 && !categoryFilters.includes(item.categoryId)) return false
+      if (needle && !`${item.label} ${item.counterparty}`.toLowerCase().includes(needle)) return false
+      const bucket = categories.find((category) => category.id === item.categoryId)?.bucket
+      if (bucket === 'variable') return showVariableCosts
+      if (bucket === 'fixed') return showFixedCosts
+      if (bucket === 'ignored') return showTransfers
+      if (item.categoryId === 'income') return showIncome
+      return true
+    }
 
-  const irregularCount = useMemo(
-    () =>
-      series.filter(
-        (item) => item.status === 'active' && !item.excluded && item.interval === 'irregular',
-      ).length,
-    [series],
-  )
+    return series.reduce(
+      (counts, item) => {
+        if (!matchesVisibleBase(item)) return counts
+        if (item.needsAmountReview) counts.review += 1
+        if (!item.excluded && item.interval === 'irregular') counts.irregular += 1
+        return counts
+      },
+      { review: 0, irregular: 0 },
+    )
+  }, [series, query, categories, categoryFilters, showVariableCosts, showFixedCosts, showIncome, showTransfers])
+
+  const reviewCount = statusCounts.review
+  const irregularCount = statusCounts.irregular
 
   const categoryLabel = (category: (typeof categories)[number]) => {
     const labels: Record<string, string> = {
