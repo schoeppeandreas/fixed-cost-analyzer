@@ -546,6 +546,7 @@ export function SeriesTable({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-14 text-right">Nr.</TableHead>
               <TableHead>{sortButton('name', 'Empfänger')}</TableHead>
               <TableHead className="text-center">Variabel</TableHead>
               <TableHead className="text-center">Einkauf</TableHead>
@@ -565,17 +566,20 @@ export function SeriesTable({
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={11} className="py-10 text-center text-muted-foreground">
                   Keine Serien für diesen Filter.
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((item) => (
+              rows.map((item, index) => (
                 <TableRow
                   key={item.key}
                   className={cn(item.excluded && 'opacity-50')}
                   data-state={item.confirmed ? 'selected' : undefined}
                 >
+                  <TableCell className="w-14 text-right font-mono text-sm tabular-nums text-muted-foreground">
+                    {index + 1}
+                  </TableCell>
                   <TableCell className="max-w-[220px]">
                     <div className="flex flex-col gap-1">
                       <button
