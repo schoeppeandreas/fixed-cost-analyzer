@@ -435,6 +435,31 @@ export function buildSeries(
 ): Series[] {
   const groups = new Map<string, Transaction[]>()
 
+  // Manche Bankexporte liefern keine eigene Spalte für die Gegenkonto-IBAN;
+  // dann greift ein Fallback, der die ganze Zeile nach einer IBAN-ähnlichen
+  // Zeichenfolge durchsucht (z. B. bei Kartenumsätzen). Dabei kann die
+  // *eigene* Konto-IBAN erfasst werden, die auf jeder Buchung gleich ist –
+  // unabhängig vom tatsächlichen Händler. Um zu verhindern, dass dadurch
+  // völlig unterschiedliche Empfänger (Supermarkt, Tankstelle, Spa, ...) in
+  // einer Serie landen, ermitteln wir vorab, wie viele unterschiedliche
+  // Empfänger hinter jeder IBAN stecken. Steht eine IBAN für auffällig viele
+  // verschiedene Empfänger, ist sie offensichtlich kein stabiler
+  // Zahlungspartner-Schlüssel und wird beim Gruppieren ignoriert.
+  const MAX_DISTINCT_COUNTERPARTIES_PER_ACCOUNT = 3
+  const counterpartiesByAccount = new Map<string, Set<string>>()
+  for (const tx of transactions) {
+    const accountKey = tx.accountIdentifier?.replace(/\s+/g, '').toUpperCase()
+    if (!accountKey) continue
+    const set = counterpartiesByAccount.get(accountKey) ?? new Set<string>()
+    set.add(normalizeCounterparty(tx.counterparty, tx.purpose))
+    counterpartiesByAccount.set(accountKey, set)
+  }
+  const unreliableAccountKeys = new Set(
+    [...counterpartiesByAccount.entries()]
+      .filter(([, counterparties]) => counterparties.size > MAX_DISTINCT_COUNTERPARTIES_PER_ACCOUNT)
+      .map(([accountKey]) => accountKey),
+  )
+
   for (const tx of transactions) {
     // Eingänge und Ausgaben desselben Empfängers getrennt gruppieren.
     // Sonst würde z. B. eine Rückerstattung die Kategorie und den
@@ -444,7 +469,8 @@ export function buildSeries(
   // Zahlungspartner-Schlüssel. Dadurch werden z. B. "Bundeskasse" und
   // "Bundeskasse DO Kiel" trotz unterschiedlicher Namen zusammengeführt.
   // Die Zahlungsrichtung und der fachliche Zahlungstyp bleiben getrennt.
-  const accountKey = tx.accountIdentifier?.replace(/\s+/g, '').toUpperCase()
+  const rawAccountKey = tx.accountIdentifier?.replace(/\s+/g, '').toUpperCase()
+  const accountKey = rawAccountKey && !unreliableAccountKeys.has(rawAccountKey) ? rawAccountKey : undefined
   const contract = contractDiscriminator(tx.purpose)
   const paymentType = contract ? contract.split('#')[0] : 'other'
   const key = accountKey
