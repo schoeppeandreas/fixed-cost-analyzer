@@ -400,8 +400,10 @@ export function SeriesTable({
         </Alert>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <InputGroup className="sm:max-w-xs">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-4 md:items-start">
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Empfänger suchen</span>
+          <InputGroup className="w-full">
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
@@ -411,14 +413,12 @@ export function SeriesTable({
             onChange={(event) => setQuery(event.target.value)}
             aria-label="Empfänger suchen"
           />
-        </InputGroup>
-
-        <div className="flex items-center gap-3" aria-hidden="true">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kategorie</span>
-          <div className="h-px flex-1 bg-border" />
+          </InputGroup>
         </div>
-        <div className="flex flex-wrap items-center gap-2" aria-label="Nach Kategorien filtern">
+
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kategorie</span>
+          <div className="flex max-h-72 flex-wrap content-start gap-2 overflow-y-auto pr-1" aria-label="Nach Kategorien filtern">
           <button
             type="button"
             onClick={() => {
@@ -477,14 +477,12 @@ export function SeriesTable({
                 </button>
               )
             })}
+          </div>
         </div>
 
-        <div className="mt-6 flex items-center gap-3" aria-hidden="true">
-          <div className="h-px flex-1 bg-border" />
+        <div className="flex flex-col gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kostenart</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-        <div className="flex flex-wrap items-center gap-2" aria-label="Kostenarten filtern">
+          <div className="flex flex-wrap content-start gap-2" aria-label="Kostenarten filtern">
             {[
               { label: 'Fixkosten', count: costFilterCounts.fixed, checked: showFixedCosts, toggle: () => toggleCostFilter('fixed') },
               { label: 'Variable Kosten', count: costFilterCounts.variable, checked: showVariableCosts, toggle: () => toggleCostFilter('variable') },
@@ -504,14 +502,12 @@ export function SeriesTable({
                 {label} ({count})
               </Button>
             ))}
+          </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-3" aria-hidden="true">
-          <div className="h-px flex-1 bg-border" />
+        <div className="flex flex-col gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Serienstatus</span>
-          <div className="h-px flex-1 bg-border" />
-        </div>
-        <ToggleGroup
+          <ToggleGroup
           value={[filter]}
           onValueChange={(value) => {
             const next = value[0] as FilterMode | undefined
@@ -533,6 +529,7 @@ export function SeriesTable({
           <ToggleGroupItem className="min-h-11 whitespace-normal text-center" value="excluded">Ausgeschlossen</ToggleGroupItem>
           <ToggleGroupItem className="min-h-11 whitespace-normal text-center" value="ended">Beendet</ToggleGroupItem>
         </ToggleGroup>
+        </div>
       </div>
 
       {query.trim() ? (
