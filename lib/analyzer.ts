@@ -264,6 +264,10 @@ function classifyInterval(gaps: number[]): {
   return { interval: best.kind, confidence, medianGap }
 }
 
+/** Ab so vielen Tagen ohne Buchung gilt eine für die Prognose freigegebene
+ * unregelmäßige Serie (z. B. jährliche KFZ-Steuer) als beendet. */
+const IRREGULAR_FORECAST_GRACE_DAYS = 370
+
 /** Ermittelt, ob eine Serie noch aktiv ist. */
 function determineStatus(
   interval: IntervalKind,
@@ -275,9 +279,12 @@ function determineStatus(
     return occurrences < 2 ? 'onetime' : daysSinceLast > 200 ? 'ended' : 'active'
   }
 
-  // Explizit für die Prognose freigegebene unregelmäßige Serien dürfen nicht
-  // wegen einer langen Lücke automatisch unter „Beendet“ verschwinden.
-  if (interval === 'irregularForecast') return 'active'
+  // Explizit für die Prognose freigegebene unregelmäßige Serien haben oft große
+  // Lücken (z. B. jährliche KFZ-Steuer). Erst nach deutlich über einem Jahr
+  // ohne Buchung gelten sie als beendet, damit sie nicht endlos aktiv bleiben.
+  if (interval === 'irregularForecast') {
+    return daysSinceLast > IRREGULAR_FORECAST_GRACE_DAYS ? 'ended' : 'active'
+  }
 
   const expectedGap = INTERVAL_MONTHS[interval] * 30.4
   // Toleranz: 2 verpasste Zyklen plus Puffer, mindestens 45 Tage
