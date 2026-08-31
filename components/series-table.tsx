@@ -400,10 +400,10 @@ export function SeriesTable({
         </Alert>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-4 md:items-start">
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Empfänger suchen</span>
-          <InputGroup className="w-full">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-8">
+          <span className="w-44 shrink-0 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Empfänger suchen</span>
+          <InputGroup className="w-full md:max-w-md">
           <InputGroupAddon>
             <SearchIcon />
           </InputGroupAddon>
@@ -416,9 +416,9 @@ export function SeriesTable({
           </InputGroup>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kategorie</span>
-          <div className="flex max-h-72 flex-wrap content-start gap-2 overflow-y-auto pr-1" aria-label="Nach Kategorien filtern">
+        <div className="flex flex-col gap-2 md:flex-row md:items-start md:gap-8">
+          <span className="w-44 shrink-0 pt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kategorie</span>
+          <div className="flex max-h-72 flex-1 flex-wrap content-start gap-2 overflow-y-auto pr-1" aria-label="Nach Kategorien filtern">
           <button
             type="button"
             onClick={() => {
@@ -480,9 +480,9 @@ export function SeriesTable({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kostenart</span>
-          <div className="flex flex-wrap content-start gap-2" aria-label="Kostenarten filtern">
+        <div className="flex flex-col gap-2 md:flex-row md:items-start md:gap-8">
+          <span className="w-44 shrink-0 pt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kostenart</span>
+          <div className="flex flex-1 flex-wrap content-start gap-2" aria-label="Kostenarten filtern">
             {[
               { label: 'Fixkosten', count: costFilterCounts.fixed, checked: showFixedCosts, toggle: () => toggleCostFilter('fixed') },
               { label: 'Variable Kosten', count: costFilterCounts.variable, checked: showVariableCosts, toggle: () => toggleCostFilter('variable') },
@@ -505,8 +505,8 @@ export function SeriesTable({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Serienstatus</span>
+        <div className="flex flex-col gap-2 md:flex-row md:items-start md:gap-8">
+          <span className="w-44 shrink-0 pt-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Serienstatus</span>
           <ToggleGroup
           value={[filter]}
           onValueChange={(value) => {
@@ -515,7 +515,7 @@ export function SeriesTable({
           }}
           variant="outline"
           size="sm"
-          className="w-full max-w-full flex-wrap items-stretch gap-2 overflow-visible"
+          className="flex-1 flex-wrap items-stretch gap-2 overflow-visible"
         >
           <ToggleGroupItem className="min-h-11 whitespace-normal text-center" value="all">Alle ({rows.length}/{series.length})</ToggleGroupItem>
           <ToggleGroupItem className="min-h-11 whitespace-normal text-center" value="review" disabled={reviewCount === 0}>
