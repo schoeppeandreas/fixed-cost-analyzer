@@ -22,7 +22,7 @@ export function SeriesInfoDialog({
   series: Series | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onToggleGroceries: (seriesKey: string) => void
+  onToggleGroceries?: (seriesKey: string) => void
 }) {
   const isGroceries = series?.categoryId === 'groceries'
   const transactionsDesc = series
@@ -95,7 +95,7 @@ export function SeriesInfoDialog({
               variant={isGroceries ? 'outline' : 'default'}
               className="w-full gap-2"
               onClick={() => {
-                onToggleGroceries(series.key)
+                onToggleGroceries?.(series.key)
                 onOpenChange(false)
               }}
             >
