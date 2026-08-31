@@ -32,11 +32,7 @@ export function FoodForecast({ series, categories, referenceDate }: { series: Se
               <div>
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   {month.monthLabel}
-                  {month.isCurrent ? (
-                    <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
-                      läuft noch
-                    </span>
-                  ) : null}
+
                 </p>
                 <p className="font-mono text-2xl font-semibold">{formatEuro(month.total)}</p>
               </div>

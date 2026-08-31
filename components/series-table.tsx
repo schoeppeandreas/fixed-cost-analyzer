@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { AmountDecisionDialog } from '@/components/amount-decision-dialog'
 import { IntervalEditDialog } from '@/components/interval-edit-dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -105,6 +106,7 @@ export function SeriesTable({
   const [showEnded, setShowEnded] = useState(false)
   const [categoryFilters, setCategoryFilters] = useState<string[]>([])
   const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [editingCategoryKey, setEditingCategoryKey] = useState<string | null>(null)
   const [editingInterval, setEditingInterval] = useState<string | null>(null)
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: 'name',
@@ -589,8 +591,22 @@ export function SeriesTable({
               rows.map((item, index) => (
                 <TableRow
                   key={item.key}
-                  className={cn(item.excluded && 'opacity-50')}
+                  className={cn('cursor-pointer transition-colors hover:bg-muted/50', item.excluded && 'opacity-50')}
                   data-state={item.confirmed ? 'selected' : undefined}
+                  onClick={(event) => {
+                    const target = event.target as HTMLElement
+                    if (target.closest('button, [role="button"], input')) return
+                    setEditingCategoryKey(item.key)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setEditingCategoryKey(item.key)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${item.label} bearbeiten`}
                 >
                   <TableCell className="w-14 text-right font-mono text-sm tabular-nums text-muted-foreground">
                     {index + 1}
@@ -844,6 +860,51 @@ export function SeriesTable({
           </TableBody>
         </Table>
       </div>
+
+      <Dialog
+        open={editingCategoryKey !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingCategoryKey(null)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Serie bearbeiten</DialogTitle>
+            <DialogDescription>
+              Kategorie für diese Serie ändern. Die Änderung gilt für alle Buchungen dieser Serie.
+            </DialogDescription>
+          </DialogHeader>
+          {(() => {
+            const item = rows.find((entry) => entry.key === editingCategoryKey)
+            if (!item) return null
+            return (
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium">{item.label}</span>
+                <Select
+                  value={item.categoryId}
+                  onValueChange={(value) => {
+                    onCategoryChange(item.key, String(value))
+                    setEditingCategoryKey(null)
+                  }}
+                >
+                  <SelectTrigger aria-label="Kategorie auswählen">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {categories.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <AmountDecisionDialog
         series={rows.find((item) => item.key === editingKey) ?? null}
