@@ -1,6 +1,11 @@
 FROM node:22-alpine AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
+ENV npm_config_registry=https://registry.npmjs.org/
+ENV npm_config_fetch_timeout=1200000
+ENV npm_config_fetch_retries=5
+ENV npm_config_fetch_retry_mintimeout=20000
+ENV npm_config_fetch_retry_maxtimeout=120000
 RUN corepack enable
 
 FROM base AS dependencies
