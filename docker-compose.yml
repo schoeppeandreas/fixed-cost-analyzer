@@ -1,13 +1,8 @@
 services:
-  fixed-cost-analyzer:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: fixed-cost-analyzer
-    restart: unless-stopped
+  app:
+    build: .
     ports:
-      - "3344:3000"
+      - "4040:3000"
     environment:
-      NODE_ENV: production
-      PORT: 3000
-      HOSTNAME: 0.0.0.0
+      - NODE_ENV=production
+    restart: unless-stopped
