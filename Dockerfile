@@ -1,32 +1,11 @@
-FROM node:22-alpine AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-ENV npm_config_registry=https://registry.npmjs.org/
-ENV npm_config_fetch_timeout=1200000
-ENV npm_config_fetch_retries=5
-ENV npm_config_fetch_retry_mintimeout=20000
-ENV npm_config_fetch_retry_maxtimeout=120000
-RUN corepack enable
-
-FROM base AS dependencies
+FROM node:22-alpine
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-RUN pnpm install --frozen-lockfile
-
-FROM dependencies AS builder
-WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install
 COPY . .
+# Entfernt die problematische Workspace-Datei
+RUN rm -f pnpm-workspace.yaml
 RUN pnpm build
-
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["pnpm", "start"]
